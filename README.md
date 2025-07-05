@@ -62,6 +62,7 @@ python main_window.py
 0. **(启动前)配置环境变量与外部依赖**：
 1. **ffmpeg**：如果您的电脑没有安装ffmpeg，需要手动安装[ffmpeg](https://ffmpeg.org/download.html)，这里不再赘述。
 2. **huggingface**：如果您所在地区为中国大陆，需要配置huggingface环境变量至系统配置，详情请自行搜索。
+    
     - Windows
     > 控制面板配置huggingface国内镜像源
     - macOS / Linux
@@ -95,6 +96,7 @@ python main_window.py
 - **安装pyinstaller**
 ```bash
 pip install pyinstaller
+确保有文件夹 temp models
 ```
 - 打包
 > Windows
@@ -104,6 +106,7 @@ pip install pyinstaller
 > macOS
 > ```bash
 > pyinstaller --windowed --name "活字乱刷术 Audio Mova" --icon="icons/icon.icns" --add-data="icons:icons" --add-data="temp:temp" --add-data="models:models" main_window.py
+> 
 > xattr -cr dist/活字乱刷术\ Audio\ Mova.app 
 > ```
 - **执行**
