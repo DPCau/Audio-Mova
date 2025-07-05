@@ -37,7 +37,7 @@ cd Audio-Mova
 - **Windows/ macOS / Linux**:
   
   ```bash
-  conda create -n AudioMova python=3.10
+  conda create -n AudioMova python=3.10 -y
   conda activate AudioMova
   ```
 
