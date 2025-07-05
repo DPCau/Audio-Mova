@@ -112,3 +112,15 @@ pip install pyinstaller
 - **执行**
 命令执行完毕后，`PyInstaller` 会创建两个新文件夹：`build` 和 `dist`。
 您最终的应用程序就在 dist 文件夹里，它是一个名为 `活字乱刷术 Audio Mova.exe`(Windows) 或者 `活字乱刷术 Audio Mova.app`(macOS) 的文件。您可以双击来运行它。
+
+## 📝 License
+
+本项目根据 [MIT License](LICENSE) 许可证授权。详情请参阅 `LICENSE` 文件。
+
+### 第三方库许可证
+
+本项目依赖于多个优秀的开源库，它们各自遵循其原始的许可证：
+- **faster-whisper**: [Apache License 2.0](https://github.com/guillaumekln/faster-whisper/blob/master/LICENSE)
+- **pydub**: [MIT License](https://github.com/jiaaro/pydub/blob/master/LICENSE)
+- **PyQt5**: [GPLv3](https://www.riverbankcomputing.com/commercial/license-faq)
+- **pinyin**: [MIT License](https://github.com/mozillazg/python-pinyin/blob/master/LICENSE)
