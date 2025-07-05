@@ -1,9 +1,16 @@
-# main_final_v13_drag_fixed_definitively.py
 import sys, os, wave, logging, hashlib, math
 from pathlib import Path
 from pinyin import pinyin
 from pydub import AudioSegment
 from faster_whisper import WhisperModel
+
+def resource_path(relative_path):
+    try:
+        base_path = sys._MEIPASS
+    except Exception:
+        base_path = os.path.abspath(".")
+
+    return os.path.join(base_path, relative_path)
 
 from PyQt5.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QPushButton, QLabel,
@@ -11,7 +18,7 @@ from PyQt5.QtWidgets import (
     QSplitter, QGraphicsView, QGraphicsScene, QGraphicsRectItem,
     QGraphicsTextItem, QMenu, QSlider, QMessageBox
 )
-from PyQt5.QtGui import (QPainter, QColor, QBrush, QPen, QFont, QKeySequence)
+from PyQt5.QtGui import (QPainter, QColor, QBrush, QPen, QFont, QKeySequence, QIcon)
 from PyQt5.QtCore import (Qt, QRectF, QMimeData, QThread, pyqtSignal, QUrl, QTimer, QPointF)
 from PyQt5.QtMultimedia import QMediaPlayer, QSoundEffect, QMediaContent
 
@@ -23,7 +30,6 @@ class ModelNotFoundError(Exception):
     """当模型文件在指定目录未找到时抛出此异常。"""
     pass
 
-# --- AudioProcessor (最终修正版：实现仅在本地查找模型) ---
 class AudioProcessor:
     def __init__(self, model_size: str = 'base', device: str = 'auto', compute_type: str = 'default'):
         if sys.platform == 'darwin':
@@ -31,29 +37,25 @@ class AudioProcessor:
             compute_type = 'int8'
             logger.info("macOS detected. Forcing device to 'cpu' for stability.")
         
-        model_path = Path("./models")
-        model_path.mkdir(exist_ok=True) # 确保models目录存在
+        model_path = Path(resource_path("models"))
+        model_path.mkdir(exist_ok=True)
         
         try:
-            # 关键修改：
-            # 1. download_root: 指定查找/存放模型的目录。
-            # 2. local_files_only=True: 强制只在本地查找，如果找不到就报错，绝不下载。
+            # 直接调用，如果模型不存在则会自动下载（在终端显示进度）
             self.model = WhisperModel(
                 model_size, 
                 device=device, 
                 compute_type=compute_type, 
                 download_root=str(model_path), 
-                local_files_only=True
+                local_files_only=False, # 允许下载
             )
-            logger.info(f"Loaded Whisper model: {model_size} on {device} from {model_path}")
+            logger.info(f"Loaded/Downloaded Whisper model: {model_size} on {device} from {model_path}")
 
         except Exception as e:
-            # 因为设置了local_files_only=True，任何加载失败都极可能是文件不存在。
-            # 我们可以直接将其包装为 ModelNotFoundError。
-            logger.error(f"Could not load model '{model_size}' from local files. Error: {e}")
+            logger.error(f"Fatal error loading model '{model_size}'. Error: {e}", exc_info=True)
             error_message = (
-                f"模型 '{model_size}' 未在目录 '{model_path.resolve()}' 中找到。\n\n"
-                f"请手动下载模型文件并放置在该目录中。\n\n"
+                f"加载或下载模型 '{model_size}' 时发生严重错误。\n\n"
+                f"请检查您的网络连接和磁盘空间。\n\n错误详情: {e}"
             )
             raise ModelNotFoundError(error_message) from e
     
@@ -94,12 +96,10 @@ class AudioProcessor:
         return str(output_path)
 
 
-# --- ProcessingThread (修改版，与新AudioProcessor配合) ---
 class ProcessingThread(QThread):
     progress_updated = pyqtSignal(int)
     processing_finished = pyqtSignal(str)
     processing_error = pyqtSignal(str)
-    model_not_found_error = pyqtSignal(str)
 
     def __init__(self, input_path, output_dir, model_size):
         super().__init__()
@@ -115,7 +115,11 @@ class ProcessingThread(QThread):
                 self.processing_finished.emit(f"目录已存在，已加载: {output_path}")
                 return
             
+            # 这一步可能会因为下载而耗时
             processor = AudioProcessor(model_size=self.model_size)
+            
+            # 模型加载/下载完成后，发出提示
+            self.processing_finished.emit("模型加载完成，开始处理音频...")
             
             def progress_callback(current, total):
                 if total > 0:
@@ -125,13 +129,12 @@ class ProcessingThread(QThread):
             self.processing_finished.emit(f"处理完成，结果保存在: {result_path}")
         
         except ModelNotFoundError as e:
-            logger.error(f"模型文件未找到: {e}")
-            self.model_not_found_error.emit(str(e))
+            logger.error(f"模型文件加载/下载错误: {e}")
+            self.processing_error.emit(str(e))
         except Exception as e:
             logger.error(f"处理错误: {e}", exc_info=True)
             self.processing_error.emit(f"处理错误: {str(e)}")
 
-# --- MaterialLibrary, AudioBlockItem, RulerWidget, TimelineView (无改动) ---
 class MaterialLibrary(QTreeWidget):
     def __init__(self, parent=None):
         super().__init__(parent); self.setHeaderHidden(True); self.setDragEnabled(True)
@@ -352,15 +355,18 @@ class TimelineView(QGraphicsView):
         self.scene.addItem(block)
         event.acceptProposedAction()
 
-# --- MainWindow (无改动, 但包含了处理新信号的逻辑) ---
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
-        self.setWindowTitle("Audio Mova - Final")
+        self.setWindowTitle("Audio Mova 活字乱刷术")
         self.setGeometry(100, 100, 1400, 800)
         self.copied_block_data = None
         self.setup_ui()
         self.setup_player()
+        if sys.platform == 'darwin':
+            self.setWindowIcon(QIcon(resource_path('icons/icon.icns')))
+        else:
+            self.setWindowIcon(QIcon(resource_path('icons/icon.png')))
         self.processing_thread = None
 
     def setup_ui(self):
@@ -521,7 +527,9 @@ class MainWindow(QMainWindow):
         import_action.triggered.connect(self.browse_input_file)
         export_action = file_menu.addAction("导出音频...")
         export_action.triggered.connect(self.export_timeline)
-        file_menu.addSeparator()
+        help_menu = menu_bar.addMenu("帮助")
+        about_action = help_menu.addAction("关于")
+        about_action.triggered.connect(self.show_about_dialog) 
         exit_action = file_menu.addAction("退出")
         exit_action.triggered.connect(self.close)
 
@@ -635,38 +643,57 @@ class MainWindow(QMainWindow):
             return
         
         self.process_btn.setEnabled(False)
-        self.statusBar().showMessage("处理中...")
+        self.statusBar().showMessage("正在准备处理，可能需要下载模型...")
         self.progress_bar.setValue(0)
-        
-        self.processing_thread = ProcessingThread(input_path, output_dir, model_size)
+        self.progress_bar.setFormat("%p%")
+
+        self.processing_thread = ProcessingThread(
+            input_path, 
+            output_dir, 
+            model_size
+        )
+
         self.processing_thread.progress_updated.connect(self.progress_bar.setValue)
         self.processing_thread.processing_finished.connect(self.processing_complete)
-        self.processing_thread.processing_error.connect(self.processing_complete)
-        self.processing_thread.model_not_found_error.connect(self.show_model_error_dialog)
+        self.processing_thread.processing_error.connect(self.show_error_message)
         self.processing_thread.finished.connect(lambda: self.process_btn.setEnabled(True))
+        
         self.processing_thread.start()
 
     def processing_complete(self, message):
         self.statusBar().showMessage(message)
-        self.progress_bar.setValue(100)
-        self.refresh_material_library()
+        if "处理完成" in message or "目录已存在" in message:
+            self.progress_bar.setValue(100)
+            self.refresh_material_library()
+        else:
+            self.progress_bar.setValue(0)
 
-    def show_model_error_dialog(self, message):
-        self.statusBar().showMessage("模型加载失败，请检查配置。")
+
+    def show_error_message(self, message):
+        self.statusBar().showMessage("发生错误，请查看详情。")
         self.progress_bar.setValue(0)
         
-        msg_box = QMessageBox(self)
-        msg_box.setIcon(QMessageBox.Critical)
-        msg_box.setWindowTitle("模型文件错误")
-        msg_box.setText("加载语音识别模型失败。")
-        msg_box.setInformativeText(message)
-        msg_box.setStandardButtons(QMessageBox.Ok)
-        msg_box.setTextInteractionFlags(Qt.TextBrowserInteraction) # 让用户可以复制链接
-        msg_box.exec_()
+        QMessageBox.critical(self, "错误", message)
+
+    def show_about_dialog(self):
+        """
+        显示“关于”对话框。
+        """
+        about_text = """
+            <h3>活字乱刷术 Audio Mova v1.0</h3>
+            <p>
+                一款借鉴“活字印刷术”思想的音频二次创作工具。<br>
+                它可以智能切分语音，像排版一样组合声音。
+            </p>
+            <p>
+                <a href='https://github.com/DPCau/Audio-Mova'>访问github项目主页</a>
+                <a href='https://github.com/DPCau/Audio-Mova/releases'>访问项目发布页</a>
+            </p>
+        """
+        QMessageBox.about(self, "关于 活字拼声", about_text)
 
 
-if __name__ == "__main__":
-    app = QApplication(sys.argv)
-    window = MainWindow()
-    window.show()
-    sys.exit(app.exec_())
+app = QApplication(sys.argv)
+window = MainWindow()
+window.show()
+sys.exit(app.exec_())
