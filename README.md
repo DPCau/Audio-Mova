@@ -29,7 +29,7 @@
 
 ```bash
 git clone https://github.com/DPCau/Audio-Mova.git
-cd AudioMova
+cd Audio-Mova
 ```
 
 ### 2. 创建并激活虚拟环境
