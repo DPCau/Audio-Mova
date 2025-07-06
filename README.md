@@ -60,13 +60,13 @@ python main_window.py
 ## 📖 使用指南(!必看!)
 
 0. **(启动前)配置环境变量与外部依赖**：
-1. **ffmpeg**：如果您的电脑没有安装ffmpeg，需要手动安装[ffmpeg](https://ffmpeg.org/download.html)，这里不再赘述。
-2. **huggingface**：如果您所在地区为中国大陆，需要配置huggingface环境变量至系统配置，详情请自行搜索。
-    
-    - Windows
-    > 控制面板配置huggingface国内镜像源
-    - macOS / Linux
-    > .zshrc或者.bashrc配置huggingface国内镜像源
+    1. **ffmpeg**：如果您的电脑没有安装ffmpeg，需要手动安装[ffmpeg](https://ffmpeg.org/download.html)，这里不再赘述。
+    2. **huggingface**：如果您所在地区为中国大陆，需要配置huggingface环境变量至系统配置，详情请自行搜索。
+        
+        - Windows
+        > 控制面板配置huggingface国内镜像源
+        - macOS / Linux
+        > .zshrc或者.bashrc配置huggingface国内镜像源
 1.  **选择输入文件**：点击界面上方的第一个“浏览...”按钮，选择一个包含中文语音的音频或视频文件（如 `.mp3`, `.wav`, `.mp4` 等）。
 2.  **选择模型**：在“模型大小”下拉菜单中，第一次运行时选择的模型会下载并放置在 `models` 文件夹中。
 3.  **开始处理**：点击“开始处理”按钮。程序将开始进行语音识别和切分。处理进度会显示在进度条上。
